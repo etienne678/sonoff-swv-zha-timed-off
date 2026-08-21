@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible software or device-compatibility problem.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+- type: markdown
+  attributes:
+    value: |
+      If water is currently flowing unexpectedly, use the physical upstream
+      shutoff first. Do not publish secrets or unsanitized diagnostics.
+- type: checkboxes
+  attributes:
+    label: Safety checklist
+    options:
+    - label: I read SAFETY.md and controlled the physical water risk.
+      required: true
+    - label: I removed tokens, network keys, private addresses, and location data.
+      required: true
+- type: input
+  attributes:
+    label: Home Assistant Core version
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: SONOFF SWV firmware and hardware revision
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: Coordinator model and firmware
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Sanitized Zigbee signature
+    render: text
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Exact steps and command parameters
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Measured physical result
+    description: Distinguish physical water flow from the Home Assistant entity state.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Relevant sanitized logs
+    render: text

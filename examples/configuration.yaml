@@ -1,0 +1,3 @@
+# Merge this key into an existing zha: section instead of creating a duplicate.
+zha:
+  custom_quirks_path: /config/custom_zha_quirks

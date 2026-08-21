@@ -1,0 +1,19 @@
+# This example cannot run until you deliberately replace the placeholder entity,
+# remove the false condition, and enable the trigger.
+- id: example_sonoff_swv_timed_cycle
+  alias: EXAMPLE ONLY - SONOFF SWV timed cycle
+  description: Disabled example with 10-minute hardware and software timeouts.
+  triggers:
+  - trigger: time
+    at: 06:00:00
+    enabled: false
+  conditions:
+  - condition: template
+    value_template: '{{ false }}'
+  actions:
+  - action: script.swv_verified_timed_cycle
+    data:
+      valve_entity: switch.replace_with_your_sonoff_swv
+      valve_name: Example valve
+      run_seconds: 600
+  mode: single

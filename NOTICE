@@ -1,0 +1,16 @@
+SONOFF SWV ZHA Timed Off
+Copyright 2026 SONOFF SWV ZHA Timed Off contributors
+
+This project includes modified code derived from the SONOFF SWV device handler
+in zigpy/zha-device-handlers:
+
+  https://github.com/zigpy/zha-device-handlers/blob/dev/zhaquirks/sonoff/swv.py
+
+The upstream project and this derivative are licensed under the Apache License,
+Version 2.0. The modifications add a mandatory timed-off policy, per-command
+duration validation, fail-closed TOGGLE handling, state refresh after hardware
+timeout, documentation, Home Assistant examples, and tests.
+
+SONOFF is a trademark of its respective owner. This independent project is not
+affiliated with, endorsed by, or supported by SONOFF, Home Assistant, ZHA,
+zigpy, or the zha-device-handlers maintainers.

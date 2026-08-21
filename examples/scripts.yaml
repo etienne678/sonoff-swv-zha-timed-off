@@ -1,0 +1,170 @@
+swv_hardware_timed_on:
+  alias: SWV - hardware timed ON
+  description: >-
+    Sends one SONOFF SWV a hardware On With Timed Off command. Valid durations
+    are 1 through 1800 seconds. The quirk converts invalid values to 1800.
+  mode: parallel
+  max: 10
+  fields:
+    valve_entity:
+      name: Valve
+      required: true
+      selector:
+        entity:
+          domain: switch
+          integration: zha
+    hardware_timeout_seconds:
+      name: Hardware timeout
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 1800
+          step: 1
+          unit_of_measurement: s
+          mode: box
+  sequence:
+  - variables:
+      effective_timeout: >-
+        {% set requested = hardware_timeout_seconds | int(0) %}
+        {{ requested if 1 <= requested <= 1800 else 1800 }}
+      valve_ieee: >-
+        {% set identifiers = device_attr(valve_entity, 'identifiers') | default([], true) %}
+        {% set ns = namespace(ieee='') %}
+        {% for domain, identifier in identifiers %}
+          {% if domain == 'zha' %}
+            {% set ns.ieee = identifier %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.ieee }}
+  - if:
+    - condition: template
+      value_template: '{{ valve_ieee | trim == '''' }}'
+    then:
+    - stop: No ZHA IEEE address was found for the selected valve
+      error: true
+  - action: zha.issue_zigbee_cluster_command
+    data:
+      ieee: '{{ valve_ieee | trim }}'
+      endpoint_id: 1
+      cluster_id: 6
+      cluster_type: in
+      command: 66
+      command_type: server
+      params:
+        on_off_control: 0
+        on_time: '{{ effective_timeout | int }}'
+        off_wait_time: 10
+
+swv_verified_timed_cycle:
+  alias: SWV - verified hardware and software timed cycle
+  description: >-
+    Starts one SWV with a hardware timer, confirms ON, retains an independent
+    software OFF, retries once, and reports a failure persistently.
+  mode: parallel
+  max: 10
+  fields:
+    valve_entity:
+      name: Valve
+      required: true
+      selector:
+        entity:
+          domain: switch
+          integration: zha
+    valve_name:
+      name: Display name
+      required: true
+      selector:
+        text:
+    run_seconds:
+      name: Run time
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 1800
+          step: 1
+          unit_of_measurement: s
+          mode: box
+  sequence:
+  - variables:
+      valve: '{{ valve_entity }}'
+      display_name: '{{ valve_name }}'
+      runtime: >-
+        {% set requested = run_seconds | int(0) %}
+        {{ requested if 1 <= requested <= 1800 else 1800 }}
+  - if:
+    - condition: template
+      value_template: '{{ states(valve) in [''unavailable'', ''unknown''] }}'
+    then:
+    - action: persistent_notification.create
+      data:
+        title: Water valve unavailable
+        message: >-
+          The valve '{{ display_name }}' is unavailable. The timed cycle was not
+          started.
+    - stop: Selected water valve is unavailable
+      error: true
+  - action: script.swv_hardware_timed_on
+    continue_on_error: true
+    data:
+      valve_entity: '{{ valve }}'
+      hardware_timeout_seconds: '{{ runtime | int }}'
+  - wait_template: '{{ is_state(valve, ''on'') }}'
+    timeout: 00:00:05
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ not wait.completed }}'
+    then:
+    - action: script.swv_hardware_timed_on
+      continue_on_error: true
+      data:
+        valve_entity: '{{ valve }}'
+        hardware_timeout_seconds: '{{ runtime | int }}'
+    - wait_template: '{{ is_state(valve, ''on'') }}'
+      timeout: 00:00:05
+      continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ not wait.completed }}'
+    then:
+    - action: persistent_notification.create
+      data:
+        title: Water valve failed to start
+        message: >-
+          The valve '{{ display_name }}' did not report ON after two attempts.
+    - stop: Water valve failed to start
+      error: true
+  - delay:
+      seconds: '{{ runtime | int }}'
+  - action: switch.turn_off
+    continue_on_error: true
+    target:
+      entity_id: '{{ valve }}'
+  - wait_template: '{{ is_state(valve, ''off'') }}'
+    timeout: 00:00:05
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ not wait.completed }}'
+    then:
+    - action: switch.turn_off
+      continue_on_error: true
+      target:
+        entity_id: '{{ valve }}'
+    - wait_template: '{{ is_state(valve, ''off'') }}'
+      timeout: 00:00:05
+      continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ not wait.completed }}'
+    then:
+    - action: persistent_notification.create
+      data:
+        title: Critical water valve failure
+        message: >-
+          The valve '{{ display_name }}' still reports ON after its hardware
+          timeout and two software OFF attempts. Check it immediately.
+    - stop: Water valve failed to turn off
+      error: true

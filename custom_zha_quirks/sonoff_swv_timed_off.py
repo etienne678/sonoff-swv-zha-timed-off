@@ -115,9 +115,7 @@ class TimedOnOffCluster(NoReplyMixin, CustomCluster, OnOff):
             finally:
                 # The device does not reliably report physical closure. Always
                 # replace the old timer refresh with a fresh read after OFF.
-                self._turn_off_task = self.create_catching_task(
-                    self._refresh_after_off()
-                )
+                self._turn_off_task = self.create_catching_task(self._refresh_after_off())
             return result
 
         if command_id not in (0x01, 0x42):

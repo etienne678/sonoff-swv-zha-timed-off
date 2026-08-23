@@ -11,10 +11,10 @@ An experimental ZHA custom quirk for the SONOFF SWV Zigbee water valve. It
 forces every normal ON command to carry a 30-minute hardware timed-off fallback
 and permits a shorter timer to be selected for each individual valve opening.
 
-The project is currently **alpha**. The timer mechanism has been physically
-verified on one installation with a raw value of `10`: the valve opened and
-closed again after approximately 10.4 seconds. It has not been validated across
-all SWV firmware, ZHA, zigpy, coordinator, or Home Assistant versions.
+The project is currently **alpha**. The timer mechanism and redundant OFF state
+reconciliation have been physically verified on one anonymized installation.
+They have not been validated across all SWV firmware, ZHA, zigpy, coordinator,
+or Home Assistant versions.
 
 [Deutsche Dokumentation](README.de.md)
 
@@ -36,7 +36,9 @@ This quirk adds two policies:
 
 The hardware timer complements software OFF commands; it does not replace
 them. The examples retain a Home Assistant delay, an explicit OFF, a retry, and
-failure reporting.
+failure reporting. Every explicit OFF and hardware deadline is followed by a
+forced, non-cached state read so a missed device report does not leave an old ON
+state indefinitely.
 
 ## The `Auto Close Time` misunderstanding
 
@@ -66,6 +68,7 @@ entity churn.
 - [`custom_zha_quirks/sonoff_swv_timed_off.py`](custom_zha_quirks/sonoff_swv_timed_off.py): the custom quirk.
 - [`examples/scripts.yaml`](examples/scripts.yaml): dynamic timed-ON helper and a software-verified valve cycle.
 - [`examples/automation.yaml`](examples/automation.yaml): disabled example automation.
+- [`examples/flow_reconciliation_automation.yaml`](examples/flow_reconciliation_automation.yaml): optional disabled example for sustained zero flow while state remains ON.
 - [`docs/INSTALLATION.md`](docs/INSTALLATION.md): backup, installation, verification, and first test.
 - [`docs/PROTOCOL.md`](docs/PROTOCOL.md): command behavior and the `0x5011` distinction.
 - [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md): tested and untested combinations.
@@ -110,7 +113,7 @@ Review upstream changes before each Home Assistant upgrade and repeat the short
 hardware test afterwards.
 
 New quirks use the Quirks V2 API. The source includes an import fallback for the
-API paths bundled with the physically tested Home Assistant 2026.8.2 instance.
+API paths bundled with the physically tested Home Assistant 2026.8.3 instance.
 
 ## License and attribution
 

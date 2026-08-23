@@ -101,16 +101,24 @@ class TimedOnOffCluster(NoReplyMixin, CustomCluster, OnOff):
                 self._turn_off_task = None
 
             command = self.server_commands[0x00]
-            return await self.request(
-                False,
-                command.id,
-                command.schema,
-                *args,
-                manufacturer=manufacturer,
-                expect_reply=expect_reply,
-                tsn=tsn,
-                **kwargs,
-            )
+            try:
+                result = await self.request(
+                    False,
+                    command.id,
+                    command.schema,
+                    *args,
+                    manufacturer=manufacturer,
+                    expect_reply=expect_reply,
+                    tsn=tsn,
+                    **kwargs,
+                )
+            finally:
+                # The device does not reliably report physical closure. Always
+                # replace the old timer refresh with a fresh read after OFF.
+                self._turn_off_task = self.create_catching_task(
+                    self._refresh_after_off()
+                )
+            return result
 
         if command_id not in (0x01, 0x42):
             raise ValueError(f"Unsupported SWV OnOff command: 0x{command_id:02x}")
@@ -145,7 +153,15 @@ class TimedOnOffCluster(NoReplyMixin, CustomCluster, OnOff):
         """Refresh state because the tested valve does not report hardware OFF."""
         try:
             await asyncio.sleep(delay + 1)
-            await self.endpoint.on_off.read_attributes(["on_off"])
+            await self.endpoint.on_off.read_attributes(["on_off"], allow_cache=False)
+        except asyncio.CancelledError:
+            return
+
+    async def _refresh_after_off(self) -> None:
+        """Force a non-cached state reconciliation after every OFF command."""
+        try:
+            await asyncio.sleep(1)
+            await self.endpoint.on_off.read_attributes(["on_off"], allow_cache=False)
         except asyncio.CancelledError:
             return
 

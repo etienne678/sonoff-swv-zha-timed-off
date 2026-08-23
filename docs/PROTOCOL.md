@@ -23,7 +23,7 @@ this project as the requested watering duration.
 
 | Incoming cluster command | Quirk behavior |
 | --- | --- |
-| `0x00` OFF | Cancel pending state-refresh task and send OFF |
+| `0x00` OFF | Cancel the previous refresh, send OFF, then force a non-cached state read |
 | `0x01` ON | Send `0x42` with `on_time=1800` |
 | `0x02` TOGGLE | Send OFF; fail closed |
 | `0x42` with `on_time=1..1800` | Send `0x42` with the requested value |
@@ -41,7 +41,9 @@ after the requested timeout. This refresh affects only Home Assistant's view;
 the physical timer runs in the valve.
 
 A new ON or an OFF cancels the previous refresh task so an old timer cannot
-perform a stale read in the middle of a new cycle.
+perform a stale read in the middle of a new cycle. OFF immediately replaces it
+with an OFF-specific, non-cached read one second later. This prevents an OFF at
+the hardware-timer boundary from leaving Home Assistant with a stale ON state.
 
 ## Attribute `0x5011`
 

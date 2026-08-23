@@ -10,8 +10,9 @@ pytest
 ruff check .
 ```
 
-The automated suite verifies duration validation and outgoing command rewriting
-with mocked cluster transport. It does not prove physical valve behavior.
+The automated suite verifies duration validation, outgoing command rewriting,
+replacement of stale refresh tasks, and non-cached state reconciliation with
+mocked cluster transport. It does not prove physical valve behavior.
 
 ## Controlled hardware acceptance test
 
@@ -29,6 +30,48 @@ Only test where unexpected water discharge cannot cause damage.
 
 Stop immediately if the wrong valve opens or physical closure does not occur at
 the expected time.
+
+## Hardware/software OFF boundary test
+
+This verifies that redundant OFF mechanisms do not leave the valve open or
+cause it to reopen.
+
+1. Use a safely drained outlet and an immediately accessible upstream shutoff.
+2. Send a short timed ON, such as 15 seconds.
+3. Send a normal software OFF at approximately the hardware deadline.
+4. Physically confirm complete water shutoff.
+5. Continue observing beyond the deadline and confirm the valve does not reopen.
+6. Confirm Home Assistant reports `off` and the flow sensor, if present, later
+   reports zero.
+
+## Physical-button OFF test
+
+1. Send a supervised timed ON long enough to operate the physical control.
+2. Confirm real flow, then press the valve's physical button exactly once.
+3. Confirm water stops and remains stopped.
+4. Confirm Home Assistant eventually reports `off`.
+5. Do not press the button a second time; an ambiguous toggle could reopen an
+   unmodified device.
+
+## Upstream water-interruption reconciliation test
+
+This test applies only when the optional flow-reconciliation example has been
+adapted and enabled.
+
+1. Send a supervised timed ON with enough hardware time for the reconciliation
+   delay to complete.
+2. After real flow is confirmed, close only the upstream water supply. Do not
+   touch the valve button.
+3. Keep the upstream supply closed until Home Assistant confirms the valve is
+   `off`.
+4. Confirm the flow sensor remains below the configured threshold for the full
+   reconciliation delay.
+5. Confirm the automation sends OFF, verifies it, and creates the expected
+   notification.
+6. Reopen the upstream supply slowly and confirm water does not resume.
+
+If state reconciliation or OFF confirmation fails, close the upstream supply,
+stop the test, and restore the previous known-good configuration.
 
 ## Normal-ON fallback test
 
@@ -55,4 +98,6 @@ Never conduct this test where a failure could flood a building or landscape.
 
 Record the compatibility fields in `COMPATIBILITY.md`, the exact commit, timer
 value, measured duration, and outcome. Do not claim compatibility based only on
-an entity changing to `off`.
+an entity changing to `off`. Before publishing evidence, remove valve names,
+entity IDs, IEEE addresses, user or device names, network details, location
+information, notification targets, and local filesystem paths.

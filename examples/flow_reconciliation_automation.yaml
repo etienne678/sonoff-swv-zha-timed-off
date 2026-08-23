@@ -1,0 +1,60 @@
+# OPTIONAL EXAMPLE ONLY.
+# Replace both placeholder entities, review the threshold and delay, remove the
+# false condition, and enable the trigger only after a supervised test.
+- id: example_sonoff_swv_flow_reconciliation
+  alias: EXAMPLE ONLY - reconcile SWV state after sustained zero flow
+  description: >-
+    Sends fail-closed OFF when measured flow remains below the reviewed
+    threshold for 30 seconds while Home Assistant still reports the valve ON.
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.replace_with_your_flow_rate_sensor
+    below: 0.1
+    for: 00:00:30
+    enabled: false
+  conditions:
+  - condition: template
+    value_template: '{{ false }}'
+  - condition: state
+    entity_id: switch.replace_with_your_sonoff_swv
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    continue_on_error: true
+    target:
+      entity_id: switch.replace_with_your_sonoff_swv
+  - wait_template: >-
+      {{ is_state('switch.replace_with_your_sonoff_swv', 'off') }}
+    timeout: 00:00:05
+    continue_on_timeout: true
+  - if:
+    - condition: template
+      value_template: '{{ not wait.completed }}'
+    then:
+    - action: switch.turn_off
+      continue_on_error: true
+      target:
+        entity_id: switch.replace_with_your_sonoff_swv
+    - wait_template: >-
+        {{ is_state('switch.replace_with_your_sonoff_swv', 'off') }}
+      timeout: 00:00:05
+      continue_on_timeout: true
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ wait.completed }}'
+      sequence:
+      - action: persistent_notification.create
+        data:
+          title: Water valve state reconciled
+          message: >-
+            Flow remained below the configured threshold while the valve still
+            reported ON. OFF was sent and confirmed.
+    default:
+    - action: persistent_notification.create
+      data:
+        title: Critical water valve failure
+        message: >-
+          Flow stopped, but OFF could not be confirmed after two attempts.
+          Close the upstream supply and inspect the installation immediately.
+  mode: restart

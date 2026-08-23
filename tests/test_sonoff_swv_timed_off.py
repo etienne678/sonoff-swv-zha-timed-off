@@ -119,3 +119,53 @@ async def test_unsupported_command_fails(
     with pytest.raises(ValueError, match="Unsupported SWV OnOff command"):
         await cluster.command(0x40)
     assert requests == []
+
+
+@pytest.mark.asyncio
+async def test_off_cancels_old_refresh_and_schedules_reconciliation(
+    quirk_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """OFF must replace, rather than merely cancel, the pending state refresh."""
+    cluster, requests = make_cluster_harness(quirk_module, monkeypatch)
+    old_task = FakeTask()
+    cluster._turn_off_task = old_task
+
+    assert await cluster.command(0x00) == "sent"
+    assert old_task.cancelled is True
+    assert cluster._turn_off_task is not old_task
+    assert isinstance(cluster._turn_off_task, FakeTask)
+    assert len(requests) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method", ["_refresh_after_off", "_refresh_after_timeout"])
+async def test_state_reconciliation_bypasses_cache(
+    quirk_module: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    method: str,
+) -> None:
+    """Timer and OFF reconciliation must read the physical device, not cache."""
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+
+    async def fake_sleep(_delay: int) -> None:
+        return None
+
+    class FakeOnOff:
+        async def read_attributes(self, attributes: list[str], **kwargs: Any) -> None:
+            calls.append((attributes, kwargs))
+
+    class FakeEndpoint:
+        on_off = FakeOnOff()
+
+    cluster = object.__new__(quirk_module.TimedOnOffCluster)
+    cluster._endpoint = FakeEndpoint()
+    monkeypatch.setattr(quirk_module.asyncio, "sleep", fake_sleep)
+
+    coroutine = getattr(cluster, method)
+    if method == "_refresh_after_timeout":
+        await coroutine(10)
+    else:
+        await coroutine()
+
+    assert calls == [(["on_off"], {"allow_cache": False})]

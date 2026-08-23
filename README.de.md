@@ -13,10 +13,10 @@ ON-Befehl durch einen hardwareseitig zeitbegrenzten ON-Befehl mit 1.800 Sekunden
 Fallback. Ein expliziter Timed-ON-Befehl kann für jeden einzelnen Ventilstart
 eine kürzere Zeit von 1 bis 1.800 Sekunden übertragen.
 
-Der Stand ist **Alpha**. Auf einer Installation wurde `on_time=10` praktisch
-getestet; das Ventil schloss nach ungefähr 10,4 Sekunden. Andere Firmware-,
-ZHA-, zigpy-, Koordinator- und Home-Assistant-Versionen sind nicht automatisch
-abgedeckt.
+Der Stand ist **Alpha**. Hardware-Timer und redundanter Zustandsabgleich nach OFF
+wurden auf einer anonymisierten Installation praktisch getestet. Andere
+Firmware-, ZHA-, zigpy-, Koordinator- und Home-Assistant-Versionen sind nicht
+automatisch abgedeckt.
 
 ## Verhalten
 
@@ -30,7 +30,8 @@ abgedeckt.
 
 Der Hardware-Timer ergänzt die Softwareabschaltung in Home Assistant. Er ersetzt
 sie nicht. Die Beispiele enthalten weiterhin Delay, explizites OFF, Wiederholung
-und Fehlermeldung.
+und Fehlermeldung. Nach einem expliziten OFF und nach Ablauf des Hardware-Timers
+liest der Quirk den physischen Zustand ohne Cache erneut ein.
 
 ## `Auto Close Time` ist nicht die Ventillaufzeit
 
@@ -62,6 +63,9 @@ kontrollierten 10-Sekunden-Test über einem sicheren Ablauf durchführen.
 Die generischen Home-Assistant-Scripts befinden sich in
 [`examples/scripts.yaml`](examples/scripts.yaml). Sie behalten zusätzlich zum
 Hardware-Timer eine unabhängige Softwareabschaltung bei.
+Ein deaktiviertes, installationsneutral gehaltenes Beispiel für den Abgleich
+bei anhaltend fehlendem Durchfluss steht in
+[`examples/flow_reconciliation_automation.yaml`](examples/flow_reconciliation_automation.yaml).
 
 ## Sicherheit
 

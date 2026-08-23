@@ -28,6 +28,7 @@ swv_hardware_timed_on:
       effective_timeout: >-
         {% set requested = hardware_timeout_seconds | int(0) %}
         {{ requested if 1 <= requested <= 1800 else 1800 }}
+      valve_state: '{{ states(valve_entity) }}'
       valve_ieee: >-
         {% set identifiers = device_attr(valve_entity, 'identifiers') | default([], true) %}
         {% set ns = namespace(ieee='') %}
@@ -37,6 +38,18 @@ swv_hardware_timed_on:
           {% endif %}
         {% endfor %}
         {{ ns.ieee }}
+  - if:
+    - condition: template
+      value_template: '{{ valve_state != ''off'' }}'
+    then:
+    - action: switch.turn_off
+      continue_on_error: true
+      target:
+        entity_id: '{{ valve_entity }}'
+    - stop: >-
+        The valve was not safely confirmed OFF before the start. It was sent
+        OFF and was not opened.
+      error: true
   - if:
     - condition: template
       value_template: '{{ valve_ieee | trim == '''' }}'
@@ -117,23 +130,19 @@ swv_verified_timed_cycle:
     - condition: template
       value_template: '{{ not wait.completed }}'
     then:
-    - action: script.swv_hardware_timed_on
+    - action: switch.turn_off
       continue_on_error: true
-      data:
-        valve_entity: '{{ valve }}'
-        hardware_timeout_seconds: '{{ runtime | int }}'
-    - wait_template: '{{ is_state(valve, ''on'') }}'
+      target:
+        entity_id: '{{ valve }}'
+    - wait_template: '{{ is_state(valve, ''off'') }}'
       timeout: 00:00:05
       continue_on_timeout: true
-  - if:
-    - condition: template
-      value_template: '{{ not wait.completed }}'
-    then:
     - action: persistent_notification.create
       data:
         title: Water valve failed to start
         message: >-
-          The valve '{{ display_name }}' did not report ON after two attempts.
+          The valve '{{ display_name }}' did not report ON after the single
+          start command. No second ON was sent; OFF was requested instead.
     - stop: Water valve failed to start
       error: true
   - delay:
